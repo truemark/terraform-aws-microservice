@@ -14,12 +14,8 @@ data "aws_lb" "service" {
   arn = data.aws_lb_listener.service.load_balancer_arn
 }
 
-locals {
-  name = "${var.name}-${terraform.workspace}"
-}
-
 resource "aws_lb_target_group" "service" {
-  name     = local.name
+  name     = var.name
   port     = var.service_port
   protocol = "HTTP"
   vpc_id   = data.aws_lb.service.vpc_id
@@ -64,12 +60,12 @@ resource "aws_lb_listener_rule" "service" {
 }
 
 resource "aws_cloudwatch_log_group" "service" {
-  name = local.name
+  name = var.name
   retention_in_days = 3
 }
 
 resource "aws_security_group" "service" {
-  name = local.name
+  name = var.name
   vpc_id = data.aws_lb.service.vpc_id
 
   ingress {
@@ -92,7 +88,7 @@ resource "aws_security_group" "service" {
 # Task Role
 #------------------------------------------------------------------------------
 resource "aws_iam_role" "task" {
-  name = "${local.name}-task"
+  name = "${var.name}-task"
   assume_role_policy = <<EOF
 {
   "Version": "2012-10-17",
@@ -134,7 +130,7 @@ data "aws_iam_policy_document" "task_role_policy" {
 }
 
 resource "aws_iam_role_policy" "task" {
-  name = "${local.name}-task"
+  name = "${var.name}-task"
   role = aws_iam_role.task.id
   policy = data.aws_iam_policy_document.task_role_policy.json
 }
@@ -143,7 +139,7 @@ resource "aws_iam_role_policy" "task" {
 # ECS Role
 #------------------------------------------------------------------------------
 resource "aws_iam_role" "ecs" {
-  name = "${local.name}-ecs"
+  name = "${var.name}-ecs"
   assume_role_policy = <<EOF
 {
   "Version": "2012-10-17",
@@ -195,7 +191,7 @@ data "aws_iam_policy_document" "ecs_role_policy" {
 }
 
 resource "aws_iam_role_policy" "ecs" {
-  name = "${local.name}-ecs"
+  name = "${var.name}-ecs"
   role = aws_iam_role.ecs.id
   policy = data.aws_iam_policy_document.ecs_role_policy.json
 }
@@ -211,7 +207,7 @@ locals {
 EOF
 }
 resource "aws_ecs_task_definition" "service" {
-  family = local.name
+  family = var.name
   execution_role_arn = aws_iam_role.ecs.arn
   task_role_arn = aws_iam_role.task.arn
   network_mode = "awsvpc"
@@ -221,7 +217,7 @@ resource "aws_ecs_task_definition" "service" {
   container_definitions = <<EOF
 [
   {
-    "name": "${local.name}",
+    "name": "${var.name}",
     "image": "${var.image}",
     "cpu": ${var.cpu},
     "memory": ${var.memory},
@@ -240,7 +236,7 @@ resource "aws_ecs_task_definition" "service" {
       "options": {
         "awslogs-group": "${aws_cloudwatch_log_group.service.name}",
         "awslogs-region": "${data.aws_region.current.name}",
-        "awslogs-stream-prefix": "${local.name}"
+        "awslogs-stream-prefix": "${var.name}"
       }
     },
     ${local.credentials}
@@ -251,7 +247,7 @@ EOF
 }
 
 resource "aws_ecs_service" "service" {
-  name = local.name
+  name = var.name
   cluster = data.aws_ecs_cluster.service.id
   task_definition = aws_ecs_task_definition.service.arn
   desired_count = var.desired_count
@@ -267,7 +263,7 @@ resource "aws_ecs_service" "service" {
 
   load_balancer {
     target_group_arn = aws_lb_target_group.service.arn
-    container_name   = local.name
+    container_name   = var.name
     container_port   = var.service_port
   }
 
@@ -292,7 +288,7 @@ resource "aws_appautoscaling_target" "target" {
 
 # Automatically scale capacity up by one
 resource "aws_appautoscaling_policy" "up" {
-  name               = "${local.name}-up"
+  name               = "${var.name}-up"
   policy_type        = "StepScaling"
   resource_id        = aws_appautoscaling_target.target.resource_id
   service_namespace  = aws_appautoscaling_target.target.service_namespace
@@ -314,7 +310,7 @@ resource "aws_appautoscaling_policy" "up" {
 
 # Automatically scale capacity down by one
 resource "aws_appautoscaling_policy" "down" {
-  name               = "${local.name}-down"
+  name               = "${var.name}-down"
   policy_type        = "StepScaling"
   resource_id        = aws_appautoscaling_target.target.resource_id
   scalable_dimension = aws_appautoscaling_target.target.scalable_dimension
@@ -336,7 +332,7 @@ resource "aws_appautoscaling_policy" "down" {
 
 # CloudWatch alarm that triggers the autoscaling up policy
 resource "aws_cloudwatch_metric_alarm" "service_cpu_high" {
-  alarm_name          = "${local.name}_cpu_utilization_high"
+  alarm_name          = "${var.name}_cpu_utilization_high"
   comparison_operator = "GreaterThanOrEqualToThreshold"
   evaluation_periods  = var.alarm_cpu_high_evaluation_periods
   metric_name         = "CPUUtilization"
@@ -355,7 +351,7 @@ resource "aws_cloudwatch_metric_alarm" "service_cpu_high" {
 
 # CloudWatch alarm that triggers the autoscaling down policy
 resource "aws_cloudwatch_metric_alarm" "service_cpu_low" {
-  alarm_name          = "${local.name}_cpu_utilization_low"
+  alarm_name          = "${var.name}_cpu_utilization_low"
   comparison_operator = "LessThanOrEqualToThreshold"
   evaluation_periods  = var.alarm_cpu_low_evaluation_periods
   metric_name         = "CPUUtilization"
@@ -375,7 +371,7 @@ resource "aws_cloudwatch_metric_alarm" "service_cpu_low" {
 # Optionally create a DNS record in the provided zone
 resource "aws_route53_record" "alb" {
   count = var.zone_id != null ? 1 : 0
-  name = terraform.workspace == "prod" || terraform.workspace == "default" ? var.name : local.name
+  name = var.name
   type = "A"
   zone_id = var.zone_id
   alias {

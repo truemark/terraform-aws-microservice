@@ -57,7 +57,7 @@ variable "service_port" {
 }
 
 variable "environment_variables" {
-  default = {}
+  default = []
 }
 
 variable "cpu" {
