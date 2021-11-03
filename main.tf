@@ -123,7 +123,7 @@ data "aws_iam_policy_document" "task_role_policy" {
         "ssm:GetParametersByPath"
       ]
       resources = [
-        "arn:aws:ssm:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:parameter${statement.value}"
+        "arn:aws:ssm:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:parameter/${statement.value}"
       ]
     }
   }
