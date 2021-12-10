@@ -129,6 +129,26 @@ data "aws_iam_policy_document" "task_role_policy" {
   }
 
   dynamic "statement" {
+    for_each = var.parameter_paths_write
+    content {
+      actions = [
+        "ssm:PutParameter",
+        "ssm:DeleteParameter",
+        "ssm:GetParameterHistory",
+        "ssm:GetParametersByPath",
+        "ssm:GetParameters",
+        "ssm:GetParameter",
+        "ssm:DeleteParameters",
+        "ssm:GetParameters",
+        "ssm:GetParametersByPath"
+      ]
+      resources = [
+        "arn:aws:ssm:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:parameter/${statement.value}"
+      ]
+    }
+  }
+
+  dynamic "statement" {
     for_each = var.secrets
     content {
       actions = [

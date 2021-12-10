@@ -38,7 +38,13 @@ variable "host_headers" {
 }
 
 variable "parameter_paths" {
-  description = "The parameters paths on an AWS Account-ID that will be part of a generated policy for CloudWatch Event Log Records on those parameters."
+  description = "The parameters paths on an AWS Account that will be part of a generated policy for read-only access."
+  type = list(string)
+  default = []
+}
+
+variable "parameter_paths_write" {
+  description = "The parameter paths on an AWS Account that will be part of a generated policy for read-write access."
   type = list(string)
   default = []
 }
