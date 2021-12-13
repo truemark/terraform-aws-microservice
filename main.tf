@@ -14,6 +14,11 @@ data "aws_lb" "service" {
   arn = data.aws_lb_listener.service.load_balancer_arn
 }
 
+data "aws_route53_zone" "selected" {
+  count = var.zone_id == null ? 0 : 1
+  zone_id = var.zone_id
+}
+
 resource "aws_lb_target_group" "service" {
   name     = var.name
   port     = var.service_port
@@ -53,7 +58,7 @@ resource "aws_lb_listener_rule" "service" {
   }
   condition {
     host_header {
-      values = var.host_headers
+      values = var.host_headers != null ? var.host_headers : var.dns_name != null ? ["${var.dns_name}.${join("", data.aws_route53_zone.selected.*.name)}"] : ["${var.name}.${join("", data.aws_route53_zone.selected.*.name)}"]
     }
   }
   priority = var.priority
@@ -404,7 +409,7 @@ resource "aws_cloudwatch_metric_alarm" "service_cpu_low" {
 # Optionally create a DNS record in the provided zone
 resource "aws_route53_record" "alb" {
   count = var.zone_id != null ? 1 : 0
-  name = var.name
+  name = var.dns_name == null ? var.name : var.dns_name
   type = "A"
   zone_id = var.zone_id
   alias {

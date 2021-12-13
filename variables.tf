@@ -35,6 +35,7 @@ variable "assign_public_ip" {
 variable "host_headers" {
   description = "(Optional) Contains a single values item which is a list of host header patterns to match. The maximum size of each pattern is 128 characters. Comparison is case insensitive. Wildcard characters supported: * (matches 0 or more characters) and ? (matches exactly 1 character). Only one pattern needs to match for the condition to be satisfied."
   type = list(string)
+  default = null
 }
 
 variable "parameter_paths" {
@@ -61,6 +62,11 @@ variable "secrets" {
 variable "task_role_policy_statements" {
   description = "Not currently used."
   default = ""
+}
+
+variable "dns_name" {
+  description = "If populated, will be used when creating the Route53 DNS record. Otherwise defaults to name."
+  default = null
 }
 
 variable "zone_id" {
