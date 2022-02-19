@@ -43,6 +43,8 @@ resource "aws_lb_target_group" "service" {
     enabled = var.stickiness_enabled
     cookie_duration = var.stickiness_duration
   }
+
+  tags = merge(var.tags, var.lb_target_group_tags)
 }
 
 resource "aws_lb_listener_rule" "service" {
@@ -62,11 +64,13 @@ resource "aws_lb_listener_rule" "service" {
     }
   }
   priority = var.priority
+  tags = merge(var.tags, var.lb_listener_rule_tags)
 }
 
 resource "aws_cloudwatch_log_group" "service" {
   name = var.name
   retention_in_days = 3
+  tags = merge(var.tags, var.cloudwatch_log_group_tags)
 }
 
 resource "aws_security_group" "service" {
@@ -87,6 +91,7 @@ resource "aws_security_group" "service" {
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
+  tags = merge(var.tags, var.security_group_tags)
 }
 
 #------------------------------------------------------------------------------
@@ -107,6 +112,7 @@ resource "aws_iam_role" "task" {
   }]
 }
 EOF
+  tags = merge(var.tags, var.task_iam_role_tags)
 }
 
 data "aws_iam_policy_document" "task_role_policy" {
@@ -191,6 +197,7 @@ resource "aws_iam_role" "ecs" {
   }]
 }
 EOF
+  tags = merge(var.tags, var.ecs_iam_role_tags)
 }
 
 data "aws_iam_policy_document" "ecs_role_policy" {
@@ -244,6 +251,7 @@ locals {
     },
 EOF
 }
+
 resource "aws_ecs_task_definition" "service" {
   family = var.name
   execution_role_arn = aws_iam_role.ecs.arn
@@ -282,6 +290,7 @@ resource "aws_ecs_task_definition" "service" {
   }
 ]
 EOF
+  tags = merge(var.tags, var.ecs_task_definition_tags)
 }
 
 resource "aws_ecs_service" "service" {
@@ -309,7 +318,10 @@ resource "aws_ecs_service" "service" {
     aws_ecs_task_definition.service,
     aws_lb_target_group.service,
     aws_security_group.service,
-    aws_cloudwatch_log_group.service]
+    aws_cloudwatch_log_group.service
+  ]
+
+  tags = merge(var.tags, var.ecs_service_tags)
 }
 
 #------------------------------------------------------------------------------
@@ -385,6 +397,7 @@ resource "aws_cloudwatch_metric_alarm" "service_cpu_high" {
   }
 
   alarm_actions = [aws_appautoscaling_policy.up.arn]
+  tags = merge(var.tags, var.cloudwatch_metric_alarm_tags)
 }
 
 # CloudWatch alarm that triggers the autoscaling down policy
@@ -404,6 +417,7 @@ resource "aws_cloudwatch_metric_alarm" "service_cpu_low" {
   }
 
   alarm_actions = [aws_appautoscaling_policy.down.arn]
+  tags = merge(var.tags, var.cloudwatch_metric_alarm_tags)
 }
 
 # Optionally create a DNS record in the provided zone

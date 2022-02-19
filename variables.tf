@@ -266,3 +266,68 @@ variable "stickiness_duration" {
   description = "The time period, in seconds, during which requests from a client should be routed to the same target. Default is 86400 (24 hours)"
   default = 86400
 }
+
+variable "tags" {
+  description = "Tags applied to all resources."
+  default = {}
+  type = map(string)
+}
+
+variable "lb_target_group_tags" {
+  description = "Tags for the load balancer target group resource."
+  default = {}
+  type = map(string)
+}
+
+variable "lb_listener_rule_tags" {
+  description = "Tags for the load balancer listener rule."
+  default = {}
+  type = map(string)
+}
+
+variable "cloudwatch_log_group_tags" {
+  description = "Tags for the CloudWatch log group."
+  default = {}
+  type = map(string)
+}
+
+variable "security_group_tags" {
+  description = "Tags for the security group."
+  default = {}
+  type = map(string)
+}
+
+variable "task_iam_role_tags" {
+  description = "Tags for the task IAM role."
+  default = {}
+  type = map(string)
+}
+
+variable "ecs_iam_role_tags" {
+  description = "Tags for the ECS IAM role."
+  default = {}
+  type = map(string)
+}
+
+variable "ecs_task_definition_tags" {
+  description = "Tags for the ECS task definition."
+  default = {}
+  type = map(string)
+}
+
+variable "ecs_service_tags" {
+  description = "Tags for the ECS service."
+  default = {}
+  type = map(string)
+}
+
+variable "cloudwatch_metric_alarm_tags" {
+  description = "Tags for the all cloudwatch metric alarms."
+  default = {}
+  type = map(string)
+}
+
+
+
+
+
