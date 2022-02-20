@@ -20,6 +20,7 @@ data "aws_route53_zone" "selected" {
 }
 
 resource "aws_lb_target_group" "service" {
+  count = var.create ? 1 : 0
   name     = var.name
   port     = var.service_port
   protocol = "HTTP"
@@ -48,10 +49,11 @@ resource "aws_lb_target_group" "service" {
 }
 
 resource "aws_lb_listener_rule" "service" {
+  count = var.create ? 1 : 0
   listener_arn = data.aws_lb_listener.service.arn
   action {
     type = "forward"
-    target_group_arn = aws_lb_target_group.service.arn
+    target_group_arn = aws_lb_target_group.service[count.index].arn
   }
   condition {
     path_pattern {
@@ -68,12 +70,14 @@ resource "aws_lb_listener_rule" "service" {
 }
 
 resource "aws_cloudwatch_log_group" "service" {
+  count = var.create ? 1 : 0
   name = var.name
   retention_in_days = 3
   tags = merge(var.tags, var.cloudwatch_log_group_tags)
 }
 
 resource "aws_security_group" "service" {
+  count = var.create ? 1 : 0
   name = "${var.name}-task"
   vpc_id = data.aws_lb.service.vpc_id
 
@@ -98,6 +102,7 @@ resource "aws_security_group" "service" {
 # Task Role
 #------------------------------------------------------------------------------
 resource "aws_iam_role" "task" {
+  count = var.create ? 1 : 0
   name = "${var.name}-task"
   assume_role_policy = <<EOF
 {
@@ -174,8 +179,9 @@ data "aws_iam_policy_document" "task_role_policy" {
 }
 
 resource "aws_iam_role_policy" "task" {
+  count = var.create ? 1 : 0
   name = "${var.name}-task"
-  role = aws_iam_role.task.id
+  role = aws_iam_role.task[count.index].id
   policy = data.aws_iam_policy_document.task_role_policy.json
 }
 
@@ -183,6 +189,7 @@ resource "aws_iam_role_policy" "task" {
 # ECS Role
 #------------------------------------------------------------------------------
 resource "aws_iam_role" "ecs" {
+  count = var.create && var.ecs_role_arn != null ? 1 : 0
   name = "${var.name}-ecs"
   assume_role_policy = <<EOF
 {
@@ -236,8 +243,9 @@ data "aws_iam_policy_document" "ecs_role_policy" {
 }
 
 resource "aws_iam_role_policy" "ecs" {
+  count = var.create && var.ecs_role_arn != null ? 1 : 0
   name = "${var.name}-ecs"
-  role = aws_iam_role.ecs.id
+  role = aws_iam_role.ecs[count.index].id
   policy = data.aws_iam_policy_document.ecs_role_policy.json
 }
 
@@ -253,9 +261,10 @@ EOF
 }
 
 resource "aws_ecs_task_definition" "service" {
+  count = var.create ? 1 : 0
   family = var.name
-  execution_role_arn = aws_iam_role.ecs.arn
-  task_role_arn = aws_iam_role.task.arn
+  execution_role_arn = var.ecs_role_arn != null ? var.ecs_role_arn : aws_iam_role.ecs[count.index].arn
+  task_role_arn = aws_iam_role.task[count.index].arn
   network_mode = "awsvpc"
   requires_compatibilities = ["FARGATE"]
   cpu = var.cpu
@@ -280,7 +289,7 @@ resource "aws_ecs_task_definition" "service" {
     "logConfiguration": {
       "logDriver": "awslogs",
       "options": {
-        "awslogs-group": "${aws_cloudwatch_log_group.service.name}",
+        "awslogs-group": "${aws_cloudwatch_log_group.service[count.index].name}",
         "awslogs-region": "${data.aws_region.current.name}",
         "awslogs-stream-prefix": "${var.name}"
       }
@@ -294,22 +303,23 @@ EOF
 }
 
 resource "aws_ecs_service" "service" {
+  count = var.create ? 1 : 0
   name = var.name
   cluster = data.aws_ecs_cluster.service.id
-  task_definition = aws_ecs_task_definition.service.arn
+  task_definition = aws_ecs_task_definition.service[count.index].arn
   desired_count = var.desired_count
   launch_type = "FARGATE"
   deployment_maximum_percent = var.deployment_maximum_percent
   deployment_minimum_healthy_percent = var.deployment_minimum_healthy_percent
 
   network_configuration {
-    security_groups  = [aws_security_group.service.id]
+    security_groups  = [aws_security_group.service[count.index].id]
     subnets          = var.subnet_ids
     assign_public_ip = var.assign_public_ip
   }
 
   load_balancer {
-    target_group_arn = aws_lb_target_group.service.arn
+    target_group_arn = aws_lb_target_group.service[count.index].arn
     container_name   = var.name
     container_port   = var.service_port
   }
@@ -328,8 +338,9 @@ resource "aws_ecs_service" "service" {
 # ECS Scaling Configuration
 #------------------------------------------------------------------------------
 resource "aws_appautoscaling_target" "target" {
+  count = var.create ? 1 : 0
   service_namespace  = "ecs"
-  resource_id        = "service/${data.aws_ecs_cluster.service.cluster_name}/${aws_ecs_service.service.name}"
+  resource_id        = "service/${data.aws_ecs_cluster.service.cluster_name}/${aws_ecs_service.service[count.index].name}"
   scalable_dimension = "ecs:service:DesiredCount"
   min_capacity       = var.desired_count
   max_capacity       = var.max_capacity
@@ -338,11 +349,12 @@ resource "aws_appautoscaling_target" "target" {
 
 # Automatically scale capacity up by one
 resource "aws_appautoscaling_policy" "up" {
+  count = var.create ? 1 : 0
   name               = "${var.name}-up"
   policy_type        = "StepScaling"
-  resource_id        = aws_appautoscaling_target.target.resource_id
-  service_namespace  = aws_appautoscaling_target.target.service_namespace
-  scalable_dimension = aws_appautoscaling_target.target.scalable_dimension
+  resource_id        = aws_appautoscaling_target.target[count.index].resource_id
+  service_namespace  = aws_appautoscaling_target.target[count.index].service_namespace
+  scalable_dimension = aws_appautoscaling_target.target[count.index].scalable_dimension
 
   step_scaling_policy_configuration {
     adjustment_type         = "ChangeInCapacity"
@@ -360,11 +372,12 @@ resource "aws_appautoscaling_policy" "up" {
 
 # Automatically scale capacity down by one
 resource "aws_appautoscaling_policy" "down" {
+  count = var.create ? 1 : 0
   name               = "${var.name}-down"
   policy_type        = "StepScaling"
-  resource_id        = aws_appautoscaling_target.target.resource_id
-  scalable_dimension = aws_appautoscaling_target.target.scalable_dimension
-  service_namespace  = aws_appautoscaling_target.target.service_namespace
+  resource_id        = aws_appautoscaling_target.target[count.index].resource_id
+  scalable_dimension = aws_appautoscaling_target.target[count.index].scalable_dimension
+  service_namespace  = aws_appautoscaling_target.target[count.index].service_namespace
 
   step_scaling_policy_configuration {
     adjustment_type         = "ChangeInCapacity"
@@ -382,6 +395,7 @@ resource "aws_appautoscaling_policy" "down" {
 
 # CloudWatch alarm that triggers the autoscaling up policy
 resource "aws_cloudwatch_metric_alarm" "service_cpu_high" {
+  count = var.create ? 1 : 0
   alarm_name          = "${var.name}_cpu_utilization_high"
   comparison_operator = "GreaterThanOrEqualToThreshold"
   evaluation_periods  = var.alarm_cpu_high_evaluation_periods
@@ -393,15 +407,16 @@ resource "aws_cloudwatch_metric_alarm" "service_cpu_high" {
 
   dimensions = {
     ClusterName = data.aws_ecs_cluster.service.cluster_name
-    ServiceName = aws_ecs_service.service.name
+    ServiceName = aws_ecs_service.service[count.index].name
   }
 
-  alarm_actions = [aws_appautoscaling_policy.up.arn]
+  alarm_actions = [aws_appautoscaling_policy.up[count.index].arn]
   tags = merge(var.tags, var.cloudwatch_metric_alarm_tags)
 }
 
 # CloudWatch alarm that triggers the autoscaling down policy
 resource "aws_cloudwatch_metric_alarm" "service_cpu_low" {
+  count = var.create ? 1 : 0
   alarm_name          = "${var.name}_cpu_utilization_low"
   comparison_operator = "LessThanOrEqualToThreshold"
   evaluation_periods  = var.alarm_cpu_low_evaluation_periods
@@ -413,16 +428,16 @@ resource "aws_cloudwatch_metric_alarm" "service_cpu_low" {
 
   dimensions = {
     ClusterName = data.aws_ecs_cluster.service.cluster_name
-    ServiceName = aws_ecs_service.service.name
+    ServiceName = aws_ecs_service.service[count.index].name
   }
 
-  alarm_actions = [aws_appautoscaling_policy.down.arn]
+  alarm_actions = [aws_appautoscaling_policy.down[count.index].arn]
   tags = merge(var.tags, var.cloudwatch_metric_alarm_tags)
 }
 
 # Optionally create a DNS record in the provided zone
 resource "aws_route53_record" "alb" {
-  count = var.zone_id != null ? 1 : 0
+  count = var.create && var.zone_id != null ? 1 : 0
   name = var.dns_name == null ? var.name : var.dns_name
   type = "A"
   zone_id = var.zone_id

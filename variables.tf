@@ -1,12 +1,23 @@
 #------------------------------------------------------------------------------
 # Required Inputs
 #------------------------------------------------------------------------------
+variable "create" {
+  description = "Setting this to false prevents the creation of all resources."
+  type = bool
+  default = true
+}
+
 variable "name" {
   description = "(Optional, Forces new resource) Name of the target group. If omitted, Terraform will assign a random, unique name."
 }
 
 variable "cluster_name" {
   description = "The name of the ECS Cluster"
+}
+
+variable "ecs_role_arn" {
+  description = "Optional ARN of the ECS role. One is created if not provided."
+  default = null
 }
 
 variable "alb_listener_arn" {
