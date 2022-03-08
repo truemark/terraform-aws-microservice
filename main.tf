@@ -121,6 +121,19 @@ EOF
 }
 
 data "aws_iam_policy_document" "task_role_policy" {
+
+  statement {
+    actions = [
+      "ssmmessages:CreateControlChannel",
+      "ssmmessages:CreateDataChannel",
+      "ssmmessages:OpenControlChannel",
+      "ssmmessages:OpenDataChannel"
+    ]
+    resources = [
+      "*"
+    ]
+  }
+
   statement {
     actions = [
       "cloudwatch:PutMetricData",
@@ -311,6 +324,7 @@ resource "aws_ecs_service" "service" {
   launch_type = "FARGATE"
   deployment_maximum_percent = var.deployment_maximum_percent
   deployment_minimum_healthy_percent = var.deployment_minimum_healthy_percent
+  enable_execute_command = var.enable_execute_command
 
   network_configuration {
     security_groups  = [aws_security_group.service[count.index].id]

@@ -11,6 +11,12 @@ variable "name" {
   description = "(Optional, Forces new resource) Name of the target group. If omitted, Terraform will assign a random, unique name."
 }
 
+variable "enable_execute_command" {
+  description = "Enable execution through SSM"
+  type = bool
+  default = true
+}
+
 variable "cluster_name" {
   description = "The name of the ECS Cluster"
 }
