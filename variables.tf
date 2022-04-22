@@ -291,6 +291,12 @@ variable "cloudwatch_log_group_tags" {
   type = map(string)
 }
 
+variable "cloudwatch_log_group_retention" {
+  description = "Days of retention for the log group"
+  default = 3
+  type = number
+}
+
 variable "security_group_tags" {
   description = "Tags for the security group."
   default = {}

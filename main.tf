@@ -69,7 +69,7 @@ resource "aws_lb_listener_rule" "service" {
 
 resource "aws_cloudwatch_log_group" "service" {
   name = var.name
-  retention_in_days = 3
+  retention_in_days = var.cloudwatch_log_group_retention
   tags = merge(var.tags, var.cloudwatch_log_group_tags)
 }
 
