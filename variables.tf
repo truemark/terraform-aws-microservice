@@ -68,7 +68,10 @@ variable "parameter_paths_write" {
 }
 
 variable "secrets" {
-  type    = list(string)
+  type = list(object({
+    name      = string
+    valueFrom = string
+  }))
   default = []
 }
 
