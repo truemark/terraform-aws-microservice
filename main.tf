@@ -19,6 +19,11 @@ data "aws_route53_zone" "selected" {
   zone_id = var.zone_id
 }
 
+data "aws_secretsmanager_secret" "secrets" {
+  count = length(var.secrets)
+  arn   = var.secrets[count.index].valueFrom
+}
+
 resource "aws_lb_target_group" "service" {
   count                = var.create ? 1 : 0
   name                 = var.name
@@ -177,17 +182,17 @@ data "aws_iam_policy_document" "task_role_policy" {
     }
   }
 
-  dynamic "statement" {
-    for_each = var.secrets
-    content {
-      actions = [
-        "secretsmanager:GetSecretValue",
-        "secretsmanager:DescribeSecret"
-      ]
-      resources = [
-        "arn:aws:secretsmanager:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:secret:${statement.value}"
-      ]
-    }
+  statement {
+    actions = [
+      "secretsmanager:GetSecretValue",
+      "secretsmanager:DescribeSecret"
+    ]
+    resources = data.aws_secretsmanager_secret.secrets.*.arn
+  }
+
+  statement {
+    actions   = ["kms:Decrypt"]
+    resources = distinct(data.aws_secretsmanager_secret.secrets.*.kms_key_id)
   }
 }
 
@@ -308,7 +313,8 @@ resource "aws_ecs_task_definition" "service" {
       }
     },
     ${local.credentials}
-    "environment": ${jsonencode(var.environment_variables)}
+    "environment": ${jsonencode(var.environment_variables)},
+    "secrets": ${jsonencode(var.secrets)}
   }
 ]
 EOF
