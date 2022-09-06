@@ -15,33 +15,33 @@ data "aws_lb" "service" {
 }
 
 data "aws_route53_zone" "selected" {
-  count = var.zone_id == null ? 0 : 1
+  count   = var.zone_id == null ? 0 : 1
   zone_id = var.zone_id
 }
 
 resource "aws_lb_target_group" "service" {
-  count = var.create ? 1 : 0
-  name     = var.name
-  port     = var.service_port
-  protocol = "HTTP"
-  vpc_id   = data.aws_lb.service.vpc_id
-  target_type = "ip"
+  count                = var.create ? 1 : 0
+  name                 = var.name
+  port                 = var.service_port
+  protocol             = "HTTP"
+  vpc_id               = data.aws_lb.service.vpc_id
+  target_type          = "ip"
   deregistration_delay = var.deregistration_delay
-  slow_start = var.slow_start
+  slow_start           = var.slow_start
 
   health_check {
-    enabled = true
-    interval = var.health_check_interval
-    path = var.health_check_path
-    timeout = var.health_check_timeout
-    healthy_threshold = var.healthy_threshold
+    enabled             = true
+    interval            = var.health_check_interval
+    path                = var.health_check_path
+    timeout             = var.health_check_timeout
+    healthy_threshold   = var.healthy_threshold
     unhealthy_threshold = var.unhealthy_threshold
-    matcher = var.health_check_http_codes
+    matcher             = var.health_check_http_codes
   }
 
   stickiness {
-    type = "lb_cookie"
-    enabled = var.stickiness_enabled
+    type            = "lb_cookie"
+    enabled         = var.stickiness_enabled
     cookie_duration = var.stickiness_duration
   }
 
@@ -49,10 +49,10 @@ resource "aws_lb_target_group" "service" {
 }
 
 resource "aws_lb_listener_rule" "service" {
-  count = var.create ? 1 : 0
+  count        = var.create ? 1 : 0
   listener_arn = data.aws_lb_listener.service.arn
   action {
-    type = "forward"
+    type             = "forward"
     target_group_arn = aws_lb_target_group.service[count.index].arn
   }
   condition {
@@ -66,26 +66,26 @@ resource "aws_lb_listener_rule" "service" {
     }
   }
   priority = var.priority
-  tags = merge(var.tags, var.lb_listener_rule_tags)
+  tags     = merge(var.tags, var.lb_listener_rule_tags)
 }
 
 resource "aws_cloudwatch_log_group" "service" {
-  count = var.create ? 1 : 0
-  name = var.name
+  count             = var.create ? 1 : 0
+  name              = var.name
   retention_in_days = 3
-  tags = merge(var.tags, var.cloudwatch_log_group_tags)
+  tags              = merge(var.tags, var.cloudwatch_log_group_tags)
 }
 
 resource "aws_security_group" "service" {
-  count = var.create ? 1 : 0
-  name = "${var.name}-task"
+  count  = var.create ? 1 : 0
+  name   = "${var.name}-task"
   vpc_id = data.aws_lb.service.vpc_id
 
   ingress {
     description = "Allowed"
-    from_port = var.service_port
-    to_port = var.service_port
-    protocol = "tcp"
+    from_port   = var.service_port
+    to_port     = var.service_port
+    protocol    = "tcp"
     cidr_blocks = var.ingress_cidrs
   }
 
@@ -102,8 +102,8 @@ resource "aws_security_group" "service" {
 # Task Role
 #------------------------------------------------------------------------------
 resource "aws_iam_role" "task" {
-  count = var.create ? 1 : 0
-  name = "${var.name}-task"
+  count              = var.create ? 1 : 0
+  name               = "${var.name}-task"
   assume_role_policy = <<EOF
 {
   "Version": "2012-10-17",
@@ -117,7 +117,7 @@ resource "aws_iam_role" "task" {
   }]
 }
 EOF
-  tags = merge(var.tags, var.task_iam_role_tags)
+  tags               = merge(var.tags, var.task_iam_role_tags)
 }
 
 data "aws_iam_policy_document" "task_role_policy" {
@@ -192,9 +192,9 @@ data "aws_iam_policy_document" "task_role_policy" {
 }
 
 resource "aws_iam_role_policy" "task" {
-  count = var.create ? 1 : 0
-  name = "${var.name}-task"
-  role = aws_iam_role.task[count.index].id
+  count  = var.create ? 1 : 0
+  name   = "${var.name}-task"
+  role   = aws_iam_role.task[count.index].id
   policy = data.aws_iam_policy_document.task_role_policy.json
 }
 
@@ -202,8 +202,8 @@ resource "aws_iam_role_policy" "task" {
 # ECS Role
 #------------------------------------------------------------------------------
 resource "aws_iam_role" "ecs" {
-  count = var.create && var.ecs_role_arn == null ? 1 : 0
-  name = "${var.name}-ecs"
+  count              = var.create && var.ecs_role_arn == null ? 1 : 0
+  name               = "${var.name}-ecs"
   assume_role_policy = <<EOF
 {
   "Version": "2012-10-17",
@@ -217,7 +217,7 @@ resource "aws_iam_role" "ecs" {
   }]
 }
 EOF
-  tags = merge(var.tags, var.ecs_iam_role_tags)
+  tags               = merge(var.tags, var.ecs_iam_role_tags)
 }
 
 data "aws_iam_policy_document" "ecs_role_policy" {
@@ -256,9 +256,9 @@ data "aws_iam_policy_document" "ecs_role_policy" {
 }
 
 resource "aws_iam_role_policy" "ecs" {
-  count = var.create && var.ecs_role_arn == null ? 1 : 0
-  name = "${var.name}-ecs"
-  role = aws_iam_role.ecs[count.index].id
+  count  = var.create && var.ecs_role_arn == null ? 1 : 0
+  name   = "${var.name}-ecs"
+  role   = aws_iam_role.ecs[count.index].id
   policy = data.aws_iam_policy_document.ecs_role_policy.json
 }
 
@@ -274,15 +274,15 @@ EOF
 }
 
 resource "aws_ecs_task_definition" "service" {
-  count = var.create ? 1 : 0
-  family = var.name
-  execution_role_arn = var.ecs_role_arn != null ? var.ecs_role_arn : aws_iam_role.ecs[count.index].arn
-  task_role_arn = aws_iam_role.task[count.index].arn
-  network_mode = "awsvpc"
+  count                    = var.create ? 1 : 0
+  family                   = var.name
+  execution_role_arn       = var.ecs_role_arn != null ? var.ecs_role_arn : aws_iam_role.ecs[count.index].arn
+  task_role_arn            = aws_iam_role.task[count.index].arn
+  network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
-  cpu = var.cpu
-  memory = var.memory
-  container_definitions = <<EOF
+  cpu                      = var.cpu
+  memory                   = var.memory
+  container_definitions    = <<EOF
 [
   {
     "name": "${var.name}",
@@ -312,19 +312,19 @@ resource "aws_ecs_task_definition" "service" {
   }
 ]
 EOF
-  tags = merge(var.tags, var.ecs_task_definition_tags)
+  tags                     = merge(var.tags, var.ecs_task_definition_tags)
 }
 
 resource "aws_ecs_service" "service" {
-  count = var.create ? 1 : 0
-  name = var.name
-  cluster = data.aws_ecs_cluster.service.id
-  task_definition = aws_ecs_task_definition.service[count.index].arn
-  desired_count = var.desired_count
-  launch_type = "FARGATE"
-  deployment_maximum_percent = var.deployment_maximum_percent
+  count                              = var.create ? 1 : 0
+  name                               = var.name
+  cluster                            = data.aws_ecs_cluster.service.id
+  task_definition                    = aws_ecs_task_definition.service[count.index].arn
+  desired_count                      = var.desired_count
+  launch_type                        = "FARGATE"
+  deployment_maximum_percent         = var.deployment_maximum_percent
   deployment_minimum_healthy_percent = var.deployment_minimum_healthy_percent
-  enable_execute_command = var.enable_execute_command
+  enable_execute_command             = var.enable_execute_command
 
   network_configuration {
     security_groups  = [aws_security_group.service[count.index].id]
@@ -352,18 +352,18 @@ resource "aws_ecs_service" "service" {
 # ECS Scaling Configuration
 #------------------------------------------------------------------------------
 resource "aws_appautoscaling_target" "target" {
-  count = var.create ? 1 : 0
+  count              = var.create ? 1 : 0
   service_namespace  = "ecs"
   resource_id        = "service/${data.aws_ecs_cluster.service.cluster_name}/${aws_ecs_service.service[count.index].name}"
   scalable_dimension = "ecs:service:DesiredCount"
   min_capacity       = var.desired_count
   max_capacity       = var.max_capacity
-  depends_on = [aws_ecs_service.service]
+  depends_on         = [aws_ecs_service.service]
 }
 
 # Automatically scale capacity up by one
 resource "aws_appautoscaling_policy" "up" {
-  count = var.create ? 1 : 0
+  count              = var.create ? 1 : 0
   name               = "${var.name}-up"
   policy_type        = "StepScaling"
   resource_id        = aws_appautoscaling_target.target[count.index].resource_id
@@ -386,7 +386,7 @@ resource "aws_appautoscaling_policy" "up" {
 
 # Automatically scale capacity down by one
 resource "aws_appautoscaling_policy" "down" {
-  count = var.create ? 1 : 0
+  count              = var.create ? 1 : 0
   name               = "${var.name}-down"
   policy_type        = "StepScaling"
   resource_id        = aws_appautoscaling_target.target[count.index].resource_id
@@ -409,7 +409,7 @@ resource "aws_appautoscaling_policy" "down" {
 
 # CloudWatch alarm that triggers the autoscaling up policy
 resource "aws_cloudwatch_metric_alarm" "service_cpu_high" {
-  count = var.create ? 1 : 0
+  count               = var.create ? 1 : 0
   alarm_name          = "${var.name}_cpu_utilization_high"
   comparison_operator = "GreaterThanOrEqualToThreshold"
   evaluation_periods  = var.alarm_cpu_high_evaluation_periods
@@ -425,12 +425,12 @@ resource "aws_cloudwatch_metric_alarm" "service_cpu_high" {
   }
 
   alarm_actions = [aws_appautoscaling_policy.up[count.index].arn]
-  tags = merge(var.tags, var.cloudwatch_metric_alarm_tags)
+  tags          = merge(var.tags, var.cloudwatch_metric_alarm_tags)
 }
 
 # CloudWatch alarm that triggers the autoscaling down policy
 resource "aws_cloudwatch_metric_alarm" "service_cpu_low" {
-  count = var.create ? 1 : 0
+  count               = var.create ? 1 : 0
   alarm_name          = "${var.name}_cpu_utilization_low"
   comparison_operator = "LessThanOrEqualToThreshold"
   evaluation_periods  = var.alarm_cpu_low_evaluation_periods
@@ -446,18 +446,18 @@ resource "aws_cloudwatch_metric_alarm" "service_cpu_low" {
   }
 
   alarm_actions = [aws_appautoscaling_policy.down[count.index].arn]
-  tags = merge(var.tags, var.cloudwatch_metric_alarm_tags)
+  tags          = merge(var.tags, var.cloudwatch_metric_alarm_tags)
 }
 
 # Optionally create a DNS record in the provided zone
 resource "aws_route53_record" "alb" {
-  count = var.create && var.zone_id != null ? 1 : 0
-  name = var.dns_name == null ? var.name : var.dns_name
-  type = "A"
+  count   = var.create && var.zone_id != null ? 1 : 0
+  name    = var.dns_name == null ? var.name : var.dns_name
+  type    = "A"
   zone_id = var.zone_id
   alias {
-    name = data.aws_lb.service.dns_name
-    zone_id = data.aws_lb.service.zone_id
+    name                   = data.aws_lb.service.dns_name
+    zone_id                = data.aws_lb.service.zone_id
     evaluate_target_health = true
   }
 }
