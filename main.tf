@@ -287,6 +287,9 @@ resource "aws_ecs_task_definition" "service" {
   requires_compatibilities = ["FARGATE"]
   cpu                      = var.cpu
   memory                   = var.memory
+  ephemeral_storage {
+    size_in_gib = var.ephemeral_storage
+  }
   container_definitions    = <<EOF
 [
   {
