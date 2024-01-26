@@ -145,6 +145,28 @@ data "aws_iam_policy_document" "task_role_policy" {
   }
 
   dynamic "statement" {
+    for_each = var.enable_otel ? [1] : []
+    content {
+      actions = [
+        "logs:PutLogEvents",
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "logs:DescribeLogStreams",
+        "logs:DescribeLogGroups",
+        "logs:PutRetentionPolicy",
+        "xray:PutTraceSegments",
+        "xray:PutTelemetryRecords",
+        "xray:GetSamplingRules",
+        "xray:GetSamplingTargets",
+        "xray:GetSamplingStatisticSummaries"
+      ]
+      resources = [
+        "*"
+      ]
+    }
+  }
+
+  dynamic "statement" {
     for_each = var.parameter_paths
     content {
       actions = [
@@ -287,7 +309,7 @@ resource "aws_ecs_task_definition" "service" {
   {
     "name": "${var.name}",
     "image": "${var.image}",
-    "cpu": ${var.cpu},
+    "cpu": ${var.cpu - 256},
     "memory": ${var.memory},
     "essential": true,
     "mountPoints": [],
@@ -309,7 +331,33 @@ resource "aws_ecs_task_definition" "service" {
     },
     ${local.credentials}
     "environment": ${jsonencode(var.environment_variables)}
+  }%{if var.enable_otel},
+  {
+    "name": "aws-otel-collector",
+    "image": "amazon/aws-otel-collector",
+    "cpu": 256,
+    "memory": 512,
+    "essential": true,
+    "logConfiguration": {
+      "logDriver": "awslogs",
+      "options": {
+        "awslogs-group": "${aws_cloudwatch_log_group.service[count.index].name}",
+        "awslogs-region": "${data.aws_region.current.name}",
+        "awslogs-stream-prefix": "aws-otel-collector"
+      }
+    },
+    "healthCheck": {
+      "command": ["/healthcheck"],
+      "interval": 10,
+      "retries": 5,
+      "startPeriod": 1,
+      "timeout": 5
+    },
+    "command": [
+      "${var.otel_config}"
+    ]
   }
+  %{endif}
 ]
 EOF
   tags                     = merge(var.tags, var.ecs_task_definition_tags)

@@ -345,6 +345,12 @@ variable "cloudwatch_metric_alarm_tags" {
 }
 
 
+variable "enable_otel" {
+  default     = true
+  description = "Enable OpenTelemetry sidecar"
+}
 
-
-
+variable "otel_config" {
+  default     = "--config=/etc/ecs/container-insights/otel-task-metrics-config.yaml"
+  description = "OpenTelemetry collector config"
+}
