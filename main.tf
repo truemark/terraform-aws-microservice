@@ -148,17 +148,21 @@ data "aws_iam_policy_document" "task_role_policy" {
     for_each = var.enable_otel ? [1] : []
     content {
       actions = [
-        "logs:PutLogEvents",
+        "aps:GetLabels",
+        "aps:GetSeries",
+        "aps:PutMetricData",
+        "aps:RemoteWrite",
         "logs:CreateLogGroup",
         "logs:CreateLogStream",
-        "logs:DescribeLogStreams",
         "logs:DescribeLogGroups",
+        "logs:DescribeLogStreams",
+        "logs:PutLogEvents",
         "logs:PutRetentionPolicy",
-        "xray:PutTraceSegments",
-        "xray:PutTelemetryRecords",
         "xray:GetSamplingRules",
+        "xray:GetSamplingStatisticSummaries",
         "xray:GetSamplingTargets",
-        "xray:GetSamplingStatisticSummaries"
+        "xray:PutTelemetryRecords",
+        "xray:PutTraceSegments"
       ]
       resources = [
         "*"
