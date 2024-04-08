@@ -308,7 +308,15 @@ resource "aws_ecs_task_definition" "service" {
   requires_compatibilities = ["FARGATE"]
   cpu                      = var.cpu
   memory                   = var.memory
-  container_definitions    = <<EOF
+
+  dynamic "ephemeral_storage" {
+    for_each = var.ephemeral_storage != null ? [1] : []
+    content {
+      size_in_gib = var.ephemeral_storage
+    }
+  }
+
+  container_definitions = <<EOF
 [
   {
     "name": "${var.name}",
@@ -359,12 +367,13 @@ resource "aws_ecs_task_definition" "service" {
     },
     "command": [
       "${var.otel_config}"
-    ]
+    ],
+    "environment": ${jsonencode(var.otel_environment_variables)}
   }
   %{endif}
 ]
 EOF
-  tags                     = merge(var.tags, var.ecs_task_definition_tags)
+  tags                  = merge(var.tags, var.ecs_task_definition_tags)
 }
 
 resource "aws_ecs_service" "service" {

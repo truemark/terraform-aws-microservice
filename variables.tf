@@ -122,6 +122,11 @@ variable "memory" {
   default     = 4096
 }
 
+variable "ephemeral_storage" {
+  description = "value in GiB for the ephemeral storage volume to be configured for the task. Default is null."
+  default     = null
+}
+
 variable "desired_count" {
   description = "(Optional) Number of instances of the task definition to place and keep running. Defaults to 0. Do not specify if using the DAEMON scheduling strategy. Default value is 2."
   default     = 2
@@ -353,4 +358,9 @@ variable "enable_otel" {
 variable "otel_config" {
   default     = "--config=/etc/ecs/container-insights/otel-task-metrics-config.yaml"
   description = "OpenTelemetry collector config"
+}
+
+variable "otel_environment_variables" {
+  description = "The environment variables to pass to a otel container. This parameter maps to Env in the Create a container section of the Docker Remote API and the --env option to docker run."
+  default     = []
 }
