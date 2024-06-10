@@ -290,7 +290,7 @@ resource "aws_ecs_task_definition" "service" {
   ephemeral_storage {
     size_in_gib = var.ephemeral_storage
   }
-  container_definitions    = <<EOF
+  container_definitions = <<EOF
 [
   {
     "name": "${var.name}",
@@ -321,7 +321,7 @@ resource "aws_ecs_task_definition" "service" {
   }
 ]
 EOF
-  tags                     = merge(var.tags, var.ecs_task_definition_tags)
+  tags                  = merge(var.tags, var.ecs_task_definition_tags)
 }
 
 resource "aws_ecs_service" "service" {

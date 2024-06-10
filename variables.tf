@@ -76,7 +76,7 @@ variable "secrets" {
 }
 
 variable "ephemeral_storage" {
-  type = number
+  type    = number
   default = 20
 }
 
