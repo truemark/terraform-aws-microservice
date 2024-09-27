@@ -182,17 +182,23 @@ data "aws_iam_policy_document" "task_role_policy" {
     }
   }
 
-  statement {
-    actions = [
-      "secretsmanager:GetSecretValue",
-      "secretsmanager:DescribeSecret"
-    ]
-    resources = data.aws_secretsmanager_secret.secrets.*.arn
+  dynamic statement {
+    for_each = length(var.secrets) > 0 ? [1] : []
+    content {
+      actions = [
+        "secretsmanager:GetSecretValue",
+        "secretsmanager:DescribeSecret"
+      ]
+      resources = data.aws_secretsmanager_secret.secrets.*.arn
+    }
   }
 
-  statement {
-    actions   = ["kms:Decrypt"]
-    resources = distinct(data.aws_secretsmanager_secret.secrets.*.kms_key_id)
+  dynamic "statement" {
+    for_each = length(var.secrets) > 0 && can(data.aws_secretsmanager_secret.secrets.*.kms_key_id) ? [1] : []
+    content {
+      actions   = ["kms:Decrypt"]
+      resources = distinct(data.aws_secretsmanager_secret.secrets.*.kms_key_id)
+    }
   }
 }
 
@@ -295,7 +301,7 @@ resource "aws_ecs_task_definition" "service" {
   {
     "name": "${var.name}",
     "image": "${var.image}",
-    "cpu": ${var.cpu},
+    "cpu": ${var.cpu - 256},
     "memory": ${var.memory},
     "essential": true,
     "mountPoints": [],
@@ -318,7 +324,35 @@ resource "aws_ecs_task_definition" "service" {
     ${local.credentials}
     "environment": ${jsonencode(var.environment_variables)},
     "secrets": ${jsonencode(var.secrets)}
-  }
+  } %{if var.enable_otel_collector},
+      {
+        "name": "aws-otel-collector",
+        "image": "amazon/aws-otel-collector",
+        "cpu": 256,
+        "memory": 512,
+        "essential": true,
+        "logConfiguration": {
+          "logDriver": "awslogs",
+          "options": {
+            "awslogs-group": "${aws_cloudwatch_log_group.service[count.index].name}",
+            "awslogs-region": "${data.aws_region.current.name}",
+            "awslogs-stream-prefix": "aws-otel-collector"
+          }
+        },
+        "healthCheck": {
+          "command": ["/healthcheck"],
+          "interval": 10,
+          "retries": 5,
+          "startPeriod": 1,
+          "timeout": 5
+        },
+        "command": [
+          "${var.otel_config}"
+        ],
+
+        "environment": ${jsonencode(var.otel_environment_variables)}
+      }
+      %{endif}
 ]
 EOF
   tags                  = merge(var.tags, var.ecs_task_definition_tags)

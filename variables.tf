@@ -17,6 +17,39 @@ variable "enable_execute_command" {
   default     = true
 }
 
+#------------------------------------
+# OpenTelemetry Collector Configuration
+#------------------------------------
+
+
+variable "enable_otel_collector" {
+  description = "Enable OpenTelemetry Collector"
+  type        = bool
+  default     = false
+}
+variable "otel_ssm_parameter_name" {
+  description = "The name of the SSM parameter that contains the OpenTelemetry Collector configuration"
+  type        = string
+  default     = ""
+}
+variable "otel_config" {
+  default     = "--config=/etc/ecs/container-insights/otel-task-metrics-config.yaml"
+  description = "OpenTelemetry collector config"
+}
+variable "otel_environment_variables" {
+  description = "The environment variables to pass to a otel container. This parameter maps to Env in the Create a container section of the Docker Remote API and the --env option to docker run."
+  default     = []
+}
+variable "otel_custom_config" {
+  description = "Custom OpenTelemetry configuration"
+  default     = null
+  type        = string
+}
+
+
+#------------------------------------
+# End OpenTelemetry Collector Configuration
+#------------------------------------
 variable "cluster_name" {
   description = "The name of the ECS Cluster"
 }
@@ -77,7 +110,7 @@ variable "secrets" {
 
 variable "ephemeral_storage" {
   type    = number
-  default = 20
+  default = 21
 }
 
 #------------------------------------------------------------------------------
