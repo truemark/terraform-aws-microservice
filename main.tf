@@ -200,7 +200,18 @@ data "aws_iam_policy_document" "task_role_policy" {
       resources = distinct(data.aws_secretsmanager_secret.secrets.*.kms_key_id)
     }
   }
+
+  # Add the APS (Prometheus) RemoteWrite Permission
+  statement {
+    actions = [
+      "aps:RemoteWrite"
+    ]
+    resources = [
+      "arn:aws:aps:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:workspace/${var.otel_prometheus_workspace_id}"
+    ]
+  }
 }
+
 
 resource "aws_iam_role_policy" "task" {
   count  = var.create ? 1 : 0
@@ -261,6 +272,19 @@ data "aws_iam_policy_document" "ecs_role_policy" {
       ]
       resources = [
         var.dockerhub_secret_arn
+      ]
+    }
+  }
+
+  dynamic "statement" {
+    for_each = var.parameter_paths
+    content {
+      actions = [
+        "ssm:GetParameters",
+        "ssm:GetParametersByPath"
+      ]
+      resources = [
+        "arn:aws:ssm:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:parameter/${statement.value}"
       ]
     }
   }
@@ -346,10 +370,18 @@ resource "aws_ecs_task_definition" "service" {
           "startPeriod": 1,
           "timeout": 5
         },
+        %{if var.otel_ssm_config_content_param != null}
+        "secrets": [
+          {
+            "name": "AOT_CONFIG_CONTENT",
+            "valueFrom": "${var.otel_ssm_config_content_param}"
+          }
+        ],
+        %{else}
         "command": [
           "${var.otel_config}"
         ],
-
+        %{endif}
         "environment": ${jsonencode(var.otel_environment_variables)}
       }
       %{endif}
