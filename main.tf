@@ -182,19 +182,36 @@ data "aws_iam_policy_document" "task_role_policy" {
     }
   }
 
-  statement {
-    actions = [
-      "secretsmanager:GetSecretValue",
-      "secretsmanager:DescribeSecret"
-    ]
-    resources = data.aws_secretsmanager_secret.secrets.*.arn
+  dynamic statement {
+    for_each = length(var.secrets) > 0 ? [1] : []
+    content {
+      actions = [
+        "secretsmanager:GetSecretValue",
+        "secretsmanager:DescribeSecret"
+      ]
+      resources = data.aws_secretsmanager_secret.secrets.*.arn
+    }
   }
 
+  dynamic "statement" {
+    for_each = length(var.secrets) > 0 && can(data.aws_secretsmanager_secret.secrets.*.kms_key_id) ? [1] : []
+    content {
+      actions   = ["kms:Decrypt"]
+      resources = distinct(data.aws_secretsmanager_secret.secrets.*.kms_key_id)
+    }
+  }
+
+  # Add the APS (Prometheus) RemoteWrite Permission
   statement {
-    actions   = ["kms:Decrypt"]
-    resources = distinct(data.aws_secretsmanager_secret.secrets.*.kms_key_id)
+    actions = [
+      "aps:RemoteWrite"
+    ]
+    resources = [
+      "arn:aws:aps:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:workspace/${var.otel_prometheus_workspace_id}"
+    ]
   }
 }
+
 
 resource "aws_iam_role_policy" "task" {
   count  = var.create ? 1 : 0
@@ -258,6 +275,19 @@ data "aws_iam_policy_document" "ecs_role_policy" {
       ]
     }
   }
+
+  dynamic "statement" {
+    for_each = var.parameter_paths
+    content {
+      actions = [
+        "ssm:GetParameters",
+        "ssm:GetParametersByPath"
+      ]
+      resources = [
+        "arn:aws:ssm:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:parameter/${statement.value}"
+      ]
+    }
+  }
 }
 
 resource "aws_iam_role_policy" "ecs" {
@@ -295,7 +325,7 @@ resource "aws_ecs_task_definition" "service" {
   {
     "name": "${var.name}",
     "image": "${var.image}",
-    "cpu": ${var.cpu},
+    "cpu": ${var.cpu - 256},
     "memory": ${var.memory},
     "essential": true,
     "mountPoints": [],
@@ -318,7 +348,43 @@ resource "aws_ecs_task_definition" "service" {
     ${local.credentials}
     "environment": ${jsonencode(var.environment_variables)},
     "secrets": ${jsonencode(var.secrets)}
-  }
+  } %{if var.enable_otel_collector},
+      {
+        "name": "aws-otel-collector",
+        "image": "amazon/aws-otel-collector",
+        "cpu": 256,
+        "memory": 512,
+        "essential": true,
+        "logConfiguration": {
+          "logDriver": "awslogs",
+          "options": {
+            "awslogs-group": "${aws_cloudwatch_log_group.service[count.index].name}",
+            "awslogs-region": "${data.aws_region.current.name}",
+            "awslogs-stream-prefix": "aws-otel-collector"
+          }
+        },
+        "healthCheck": {
+          "command": ["/healthcheck"],
+          "interval": 10,
+          "retries": 5,
+          "startPeriod": 1,
+          "timeout": 5
+        },
+        %{if var.otel_ssm_config_content_param != null}
+        "secrets": [
+          {
+            "name": "AOT_CONFIG_CONTENT",
+            "valueFrom": "${var.otel_ssm_config_content_param}"
+          }
+        ],
+        %{else}
+        "command": [
+          "${var.otel_config}"
+        ],
+        %{endif}
+        "environment": ${jsonencode(var.otel_environment_variables)}
+      }
+      %{endif}
 ]
 EOF
   tags                  = merge(var.tags, var.ecs_task_definition_tags)
