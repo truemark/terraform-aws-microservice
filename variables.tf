@@ -27,6 +27,12 @@ variable "enable_otel_collector" {
   type        = bool
   default     = false
 }
+
+variable "otel_image" {
+  description = "The container image to use for the OTEL (OpenTelemetry) container."
+  default = "public.ecr.aws/aws-observability/aws-otel-collector:latest"
+}
+
 variable "otel_ssm_parameter_name" {
   description = "The name of the SSM parameter that contains the OpenTelemetry Collector configuration"
   type        = string

@@ -351,7 +351,7 @@ resource "aws_ecs_task_definition" "service" {
   } %{if var.enable_otel_collector},
       {
         "name": "aws-otel-collector",
-        "image": "amazon/aws-otel-collector",
+        "image": "${var.otel_image}",
         "cpu": 256,
         "memory": 512,
         "essential": true,
