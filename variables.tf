@@ -65,6 +65,18 @@ variable "otel_environment_variables" {
   description = "The environment variables to pass to a otel container. This parameter maps to Env in the Create a container section of the Docker Remote API and the --env option to docker run."
   default     = []
 }
+
+variable "application_metrics_namespace" {
+  description = "The namespace for CW application metrics."
+  type        = string
+  default     = null
+}
+
+variable "application_metrics_log_group" {
+  description = "The log group for CW application metrics."
+  type        = string
+  default     = null
+}
 variable "otel_ssm_config_content_param" {
   description = "Custom OpenTelemetry configuration"
   default     = null

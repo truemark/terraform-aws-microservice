@@ -382,7 +382,24 @@ resource "aws_ecs_task_definition" "service" {
            "--config=${var.otel_config}"
         ],
         %{endif}
-        "environment": ${jsonencode(var.otel_environment_variables)}
+        "environment": [
+            %{if var.application_metrics_namespace != null && var.application_metrics_log_group != null}
+            {
+              "name": "ECS_APPLICATION_METRICS_NAMESPACE",
+              "value": "${var.application_metrics_namespace}"
+            },
+            {
+              "name": "ECS_APPLICATION_METRICS_LOG_GROUP",
+              "value": "${var.application_metrics_log_group}"
+            },
+            %{endif}
+            %{for env_var in var.otel_environment_variables}
+            {
+              "name": "${env_var.name}",
+              "value": "${env_var.value}"
+            }
+            %{endfor}
+        ]
       }
       %{endif}
 ]
