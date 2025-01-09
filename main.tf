@@ -350,11 +350,11 @@ resource "aws_ecs_task_definition" "service" {
     "secrets": ${jsonencode(var.secrets)}
   } %{if var.enable_otel_collector},
       {
-        "name": "aws-otel-collector",
+        "name": "${var.otel_container_name}",
         "image": "${var.otel_image}",
-        "cpu": 256,
-        "memory": 512,
-        "essential": true,
+        "cpu": ${var.otel_cpu},
+        "memory": ${var.otel_memory},
+        "essential": false,
         "logConfiguration": {
           "logDriver": "awslogs",
           "options": {
@@ -367,7 +367,7 @@ resource "aws_ecs_task_definition" "service" {
           "command": ["/healthcheck"],
           "interval": 10,
           "retries": 5,
-          "startPeriod": 1,
+          "startPeriod": 30,
           "timeout": 5
         },
         %{if var.otel_ssm_config_content_param != null}
@@ -379,7 +379,7 @@ resource "aws_ecs_task_definition" "service" {
         ],
         %{else}
         "command": [
-          "${var.otel_config}"
+           "--config=${var.otel_config}"
         ],
         %{endif}
         "environment": ${jsonencode(var.otel_environment_variables)}

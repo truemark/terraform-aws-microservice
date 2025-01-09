@@ -33,14 +33,33 @@ variable "otel_image" {
   default = "public.ecr.aws/aws-observability/aws-otel-collector:latest"
 }
 
+variable "otel_container_name" {
+  description = "The name of the OpenTelemetry Collector container."
+  type        = string
+  default     = "otel-collector"
+}
+
+variable "otel_cpu" {
+  description = "The CPU allocation for the OpenTelemetry container."
+  type        = number
+  default     = 256
+}
+
+variable "otel_memory" {
+  description = "The memory allocation for the OpenTelemetry container in MiB."
+  type        = number
+  default     = 512
+}
+
 variable "otel_ssm_parameter_name" {
   description = "The name of the SSM parameter that contains the OpenTelemetry Collector configuration"
   type        = string
   default     = ""
 }
 variable "otel_config" {
-  default     = "--config=/etc/ecs/container-insights/otel-task-metrics-config.yaml"
-  description = "OpenTelemetry collector config"
+  description = "Path to the OTEL configuration file"
+  type        = string
+  default     = "${path.module}/resources/ecs-otel-task-metrics-config.yaml"
 }
 variable "otel_environment_variables" {
   description = "The environment variables to pass to a otel container. This parameter maps to Env in the Create a container section of the Docker Remote API and the --env option to docker run."
