@@ -83,7 +83,7 @@ resource "aws_cloudwatch_log_group" "service" {
 
 resource "aws_security_group" "service" {
   count  = var.create ? 1 : 0
-  name   = "${var.name}"
+  name   = "${var.name}-task"
   vpc_id = data.aws_lb.service.vpc_id
 
   ingress {
