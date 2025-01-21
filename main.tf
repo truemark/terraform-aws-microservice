@@ -318,7 +318,6 @@ resource "aws_iam_role_policy" "ecs" {
 # ECS Service
 #------------------------------------------------------------------------------
 locals {
-  otel_config_path = "${path.module}/resources/ecs-otel-task-metrics-config.yaml"
   otel_ssm_config_content_param_arn = "arn:aws:ssm:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:parameter${var.otel_ssm_config_param}"
   credentials = var.dockerhub_secret_arn == "" ? "" : <<EOF
     "repositoryCredentials": {
@@ -396,10 +395,6 @@ resource "aws_ecs_task_definition" "service" {
         "name": "AOT_CONFIG_CONTENT",
         "valueFrom": "${local.otel_ssm_config_content_param_arn}"
       }
-    ],
-    %{ else }
-    "command": [
-      "--config=${var.otel_config != "" ? var.otel_config : local.otel_config_path}"
     ],
     %{ endif }
     "environment": [

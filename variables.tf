@@ -56,11 +56,7 @@ variable "otel_ssm_parameter_name" {
   type        = string
   default     = ""
 }
-variable "otel_config" {
-  description = "Path to the OTEL configuration file"
-  type        = string
-  default     = ""
-}
+
 variable "otel_environment_variables" {
   description = "The environment variables to pass to a otel container. This parameter maps to Env in the Create a container section of the Docker Remote API and the --env option to docker run."
   default     = []
