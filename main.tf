@@ -343,8 +343,8 @@ resource "aws_ecs_task_definition" "service" {
   {
     "name": "${var.name}",
     "image": "${var.image}",
-    "cpu": ${var.cpu},
-    "memory": ${var.memory},
+    "cpu": ${var.enable_otel_collector ? var.cpu - var.otel_cpu : var.cpu},
+    "memory": ${var.enable_otel_collector ? var.memory - var.otel_memory : var.memory},
     "essential": true,
     "mountPoints": [],
     "volumesFrom": [],

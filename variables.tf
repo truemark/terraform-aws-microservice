@@ -51,12 +51,6 @@ variable "otel_memory" {
   default     = 512
 }
 
-variable "otel_ssm_parameter_name" {
-  description = "The name of the SSM parameter that contains the OpenTelemetry Collector configuration"
-  type        = string
-  default     = ""
-}
-
 variable "otel_environment_variables" {
   description = "The environment variables to pass to a otel container. This parameter maps to Env in the Create a container section of the Docker Remote API and the --env option to docker run."
   default     = []
