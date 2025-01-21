@@ -343,7 +343,7 @@ resource "aws_ecs_task_definition" "service" {
   {
     "name": "${var.name}",
     "image": "${var.image}",
-    "cpu": ${var.cpu - 256},
+    "cpu": ${var.cpu},
     "memory": ${var.memory},
     "essential": true,
     "mountPoints": [],
