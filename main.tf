@@ -83,7 +83,7 @@ resource "aws_cloudwatch_log_group" "service" {
 
 resource "aws_security_group" "service" {
   count  = var.create ? 1 : 0
-  name   = "${var.name}-task"
+  name   = "${var.name}"
   vpc_id = data.aws_lb.service.vpc_id
 
   ingress {
@@ -139,6 +139,18 @@ data "aws_iam_policy_document" "task_role_policy" {
     ]
   }
 
+   statement {
+    actions = [
+      "logs:CreateLogGroup",
+      "logs:PutLogEvents",
+      "logs:CreateLogStream",
+      "xray:PutTraceSegments",
+    ]
+    resources = [
+      "*"
+    ]
+  }
+
   statement {
     actions = [
       "cloudwatch:PutMetricData",
@@ -157,7 +169,7 @@ data "aws_iam_policy_document" "task_role_policy" {
         "ssm:GetParametersByPath"
       ]
       resources = [
-        "arn:aws:ssm:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:parameter/${statement.value}"
+        "arn:aws:ssm:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:parameter${statement.value}"
       ]
     }
   }
@@ -177,7 +189,7 @@ data "aws_iam_policy_document" "task_role_policy" {
         "ssm:GetParametersByPath"
       ]
       resources = [
-        "arn:aws:ssm:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:parameter/${statement.value}"
+        "arn:aws:ssm:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:parameter${statement.value}"
       ]
     }
   }
@@ -204,10 +216,13 @@ data "aws_iam_policy_document" "task_role_policy" {
   # Add the APS (Prometheus) RemoteWrite Permission
   statement {
     actions = [
+      "aps:GetLabels",
+      "aps:GetSeries",
+      "aps:PutMetricData",
       "aps:RemoteWrite"
     ]
     resources = [
-      "arn:aws:aps:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:workspace/${var.otel_prometheus_workspace_id}"
+      "*"
     ]
   }
 }
@@ -249,8 +264,10 @@ data "aws_iam_policy_document" "ecs_role_policy" {
       "ecr:BatchCheckLayerAvailability",
       "ecr:GetDownloadUrlForLayer",
       "ecr:BatchGetImage",
+      "logs:CreateLogGroup",
       "logs:CreateLogStream",
       "logs:PutLogEvents",
+      "xray:PutTraceSegments",
       "elasticloadbalancing:DeregisterInstancesFromLoadBalancer",
       "elasticloadbalancing:Describe*",
       "elasticloadbalancing:RegisterInstancesWithLoadBalancer",
@@ -284,7 +301,7 @@ data "aws_iam_policy_document" "ecs_role_policy" {
         "ssm:GetParametersByPath"
       ]
       resources = [
-        "arn:aws:ssm:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:parameter/${statement.value}"
+        "arn:aws:ssm:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:parameter${statement.value}"
       ]
     }
   }
@@ -301,6 +318,8 @@ resource "aws_iam_role_policy" "ecs" {
 # ECS Service
 #------------------------------------------------------------------------------
 locals {
+  otel_config_path = "${path.module}/resources/ecs-otel-task-metrics-config.yaml"
+  otel_ssm_config_content_param_arn = "arn:aws:ssm:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:parameter${var.otel_ssm_config_param}"
   credentials = var.dockerhub_secret_arn == "" ? "" : <<EOF
     "repositoryCredentials": {
       "credentialsParameter": "${var.dockerhub_secret_arn}"
@@ -348,63 +367,64 @@ resource "aws_ecs_task_definition" "service" {
     ${local.credentials}
     "environment": ${jsonencode(var.environment_variables)},
     "secrets": ${jsonencode(var.secrets)}
-  } %{if var.enable_otel_collector},
+  }
+  %{ if var.enable_otel_collector },
+  {
+    "name": "${var.otel_container_name}",
+    "image": "${var.otel_image}",
+    "cpu": ${var.otel_cpu},
+    "memory": ${var.otel_memory},
+    "essential": false,
+    "logConfiguration": {
+      "logDriver": "awslogs",
+      "options": {
+        "awslogs-group": "${aws_cloudwatch_log_group.service[count.index].name}",
+        "awslogs-region": "${data.aws_region.current.name}",
+        "awslogs-stream-prefix": "aws-otel-collector"
+      }
+    },
+    "healthCheck": {
+      "command": ["/healthcheck"],
+      "interval": 10,
+      "retries": 5,
+      "startPeriod": 30,
+      "timeout": 5
+    },
+    %{ if var.otel_ssm_config_param != null }
+    "secrets": [
       {
-        "name": "${var.otel_container_name}",
-        "image": "${var.otel_image}",
-        "cpu": ${var.otel_cpu},
-        "memory": ${var.otel_memory},
-        "essential": false,
-        "logConfiguration": {
-          "logDriver": "awslogs",
-          "options": {
-            "awslogs-group": "${aws_cloudwatch_log_group.service[count.index].name}",
-            "awslogs-region": "${data.aws_region.current.name}",
-            "awslogs-stream-prefix": "aws-otel-collector"
-          }
-        },
-        "healthCheck": {
-          "command": ["/healthcheck"],
-          "interval": 10,
-          "retries": 5,
-          "startPeriod": 30,
-          "timeout": 5
-        },
-        %{if var.otel_ssm_config_content_param != null}
-        "secrets": [
-          {
-            "name": "AOT_CONFIG_CONTENT",
-            "valueFrom": "${var.otel_ssm_config_content_param}"
-          }
-        ],
-        %{else}
-        "command": [
-           "--config=${var.otel_config}"
-        ],
-        %{endif}
-        "environment": [
-            %{if var.application_metrics_namespace != null && var.application_metrics_log_group != null}
-            {
-              "name": "ECS_APPLICATION_METRICS_NAMESPACE",
-              "value": "${var.application_metrics_namespace}"
-            },
-            {
-              "name": "ECS_APPLICATION_METRICS_LOG_GROUP",
-              "value": "${var.application_metrics_log_group}"
-            },
-            %{endif}
-            %{for env_var in var.otel_environment_variables}
-            {
-              "name": "${env_var.name}",
-              "value": "${env_var.value}"
-            }
-            %{endfor}
+        "name": "AOT_CONFIG_CONTENT",
+        "valueFrom": "${local.otel_ssm_config_content_param_arn}"
+      }
+    ],
+    %{ else }
+    "command": [
+      "--config=${var.otel_config != "" ? var.otel_config : local.otel_config_path}"
+    ],
+    %{ endif }
+    "environment": [
+      %{ if var.application_metrics_namespace != null && var.application_metrics_log_group != null }
+      {
+        "name": "ECS_APPLICATION_METRICS_NAMESPACE",
+        "value": "${var.application_metrics_namespace}"
+      },
+      {
+        "name": "ECS_APPLICATION_METRICS_LOG_GROUP",
+        "value": "${var.application_metrics_log_group}"
+      },
+      %{ endif }
+     %{ for idx, env_var in var.otel_environment_variables }
+      {
+        "name": "${env_var.name}",
+        "value": "${env_var.value}"
+      }${idx < length(var.otel_environment_variables) - 1 ? "," : ""}
+      %{ endfor }
         ]
       }
-      %{endif}
-]
+    %{ endif }
+    ]
 EOF
-  tags                  = merge(var.tags, var.ecs_task_definition_tags)
+  tags = merge(var.tags, var.ecs_task_definition_tags)
 }
 
 resource "aws_ecs_service" "service" {

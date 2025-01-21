@@ -59,7 +59,7 @@ variable "otel_ssm_parameter_name" {
 variable "otel_config" {
   description = "Path to the OTEL configuration file"
   type        = string
-  default     = "${path.module}/resources/ecs-otel-task-metrics-config.yaml"
+  default     = ""
 }
 variable "otel_environment_variables" {
   description = "The environment variables to pass to a otel container. This parameter maps to Env in the Create a container section of the Docker Remote API and the --env option to docker run."
@@ -77,18 +77,11 @@ variable "application_metrics_log_group" {
   type        = string
   default     = null
 }
-variable "otel_ssm_config_content_param" {
+variable "otel_ssm_config_param" {
   description = "Custom OpenTelemetry configuration"
   default     = null
   type        = string
 }
-
-variable "otel_prometheus_workspace_id" {
-  description = "Premetheus workspace id"
-  default     = null
-  type        = string
-}
-
 
 #------------------------------------
 # End OpenTelemetry Collector Configuration
