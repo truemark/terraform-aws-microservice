@@ -318,7 +318,7 @@ variable "health_check_interval" {
 
 variable "health_check_path" {
   description = "URL path the health check should use. ex. /actuator/health"
-  default     = "/health"
+  default     = "/api/common/health"
 }
 
 variable "health_check_timeout" {
