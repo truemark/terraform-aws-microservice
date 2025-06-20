@@ -53,7 +53,7 @@ module "service" {
 ```hcl
 module "service" {
   source                 = "./path-to-module"
-  name                   = "my-service"
+  name                   = "my-service-dev"
   cluster_name           = "my-cluster"
   alb_listener_arn       = "arn:aws:elasticloadbalancing:region:account-id:listener/listener-id"
   image                  = "my-docker-image:latest"
@@ -66,7 +66,7 @@ module "service" {
       value = "example"
     }
   ]
-  parameter_paths                 = ["/app/my-service/*", "/app/global/otel-config"]
+  parameter_paths                 = ["/app/my-service/*"]
   zone_id                         = "Z12345ABCDEF"
   desired_count                   = 2
   autoscaling_cpu_up_scaling_adjustment = 5
@@ -78,19 +78,19 @@ module "service" {
   cpu                             = 2048
   memory                          = 4096
   enable_otel_collector           = true
-  otel_ssm_config_param           = "/app/global/otel-config"
+  otel_ssm_config_param           = "/app/global/otel" //By default it's /app/global/otel only add if you want to override
   otel_environment_variables = [
     {
       name  = "CLUSTER_NAME"
-      value = "my-cluster"
+      value = "ecs-cluster"
     },
     {
       name  = "SERVICE_NAME"
-      value = "my-service"
+      value = "ecs-service"
     },
     {
       name  = "ENVIRONMENT_NAME"
-      value = "production"
+      value = "dev"
     },
     {
       name  = "REGION"
