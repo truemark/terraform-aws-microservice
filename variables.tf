@@ -69,7 +69,7 @@ variable "application_metrics_log_group" {
 }
 variable "otel_ssm_config_param" {
   description = "Custom OpenTelemetry configuration"
-  default     = null
+  default     = "/app/global/otel"
   type        = string
 }
 
