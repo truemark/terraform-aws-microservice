@@ -17,6 +17,65 @@ variable "enable_execute_command" {
   default     = true
 }
 
+#------------------------------------
+# OpenTelemetry Collector Configuration
+#------------------------------------
+
+
+variable "enable_otel_collector" {
+  description = "Enable OpenTelemetry Collector"
+  type        = bool
+  default     = false
+}
+
+variable "otel_image" {
+  description = "The container image to use for the OTEL (OpenTelemetry) container."
+  default = "public.ecr.aws/aws-observability/aws-otel-collector:latest"
+}
+
+variable "otel_container_name" {
+  description = "The name of the OpenTelemetry Collector container."
+  type        = string
+  default     = "otel-collector"
+}
+
+variable "otel_cpu" {
+  description = "The CPU allocation for the OpenTelemetry container."
+  type        = number
+  default     = 256
+}
+
+variable "otel_memory" {
+  description = "The memory allocation for the OpenTelemetry container in MiB."
+  type        = number
+  default     = 512
+}
+
+variable "otel_environment_variables" {
+  description = "The environment variables to pass to a otel container. This parameter maps to Env in the Create a container section of the Docker Remote API and the --env option to docker run."
+  default     = []
+}
+
+variable "application_metrics_namespace" {
+  description = "The namespace for CW application metrics."
+  type        = string
+  default     = null
+}
+
+variable "application_metrics_log_group" {
+  description = "The log group for CW application metrics."
+  type        = string
+  default     = null
+}
+variable "otel_ssm_config_param" {
+  description = "Custom OpenTelemetry configuration"
+  default     = "/app/global/otel"
+  type        = string
+}
+
+#------------------------------------
+# End OpenTelemetry Collector Configuration
+#------------------------------------
 variable "cluster_name" {
   description = "The name of the ECS Cluster"
 }
@@ -77,7 +136,7 @@ variable "secrets" {
 
 variable "ephemeral_storage" {
   type    = number
-  default = 20
+  default = 21
 }
 
 #------------------------------------------------------------------------------
@@ -259,7 +318,7 @@ variable "health_check_interval" {
 
 variable "health_check_path" {
   description = "URL path the health check should use. ex. /actuator/health"
-  default     = "/health"
+  default     = "/api/common/health"
 }
 
 variable "health_check_timeout" {
