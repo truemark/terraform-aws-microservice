@@ -30,7 +30,7 @@ variable "enable_otel_collector" {
 
 variable "otel_image" {
   description = "The container image to use for the OTEL (OpenTelemetry) container."
-  default = "public.ecr.aws/aws-observability/aws-otel-collector:latest"
+  default     = "public.ecr.aws/aws-observability/aws-otel-collector:latest"
 }
 
 variable "otel_container_name" {

@@ -139,7 +139,7 @@ data "aws_iam_policy_document" "task_role_policy" {
     ]
   }
 
-   statement {
+  statement {
     actions = [
       "logs:CreateLogGroup",
       "logs:PutLogEvents",
@@ -207,7 +207,7 @@ data "aws_iam_policy_document" "task_role_policy" {
     }
   }
 
-  dynamic statement {
+  dynamic "statement" {
     for_each = length(var.secrets) > 0 ? [1] : []
     content {
       actions = [
@@ -333,7 +333,7 @@ resource "aws_iam_role_policy" "ecs" {
 #------------------------------------------------------------------------------
 locals {
   otel_ssm_config_content_param_arn = "arn:aws:ssm:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:parameter${var.otel_ssm_config_param}"
-  credentials = var.dockerhub_secret_arn == "" ? "" : <<EOF
+  credentials                       = var.dockerhub_secret_arn == "" ? "" : <<EOF
     "repositoryCredentials": {
       "credentialsParameter": "${var.dockerhub_secret_arn}"
     },
@@ -381,7 +381,7 @@ resource "aws_ecs_task_definition" "service" {
     "environment": ${jsonencode(var.environment_variables)},
     "secrets": ${jsonencode(var.secrets)}
   }
-  %{ if var.enable_otel_collector },
+  %{if var.enable_otel_collector},
   {
     "name": "${var.otel_container_name}",
     "image": "${var.otel_image}",
@@ -403,16 +403,16 @@ resource "aws_ecs_task_definition" "service" {
       "startPeriod": 30,
       "timeout": 5
     },
-    %{ if var.otel_ssm_config_param != null }
+    %{if var.otel_ssm_config_param != null}
     "secrets": [
       {
         "name": "AOT_CONFIG_CONTENT",
         "valueFrom": "${local.otel_ssm_config_content_param_arn}"
       }
     ],
-    %{ endif }
+    %{endif}
     "environment": [
-      %{ if var.application_metrics_namespace != null && var.application_metrics_log_group != null }
+      %{if var.application_metrics_namespace != null && var.application_metrics_log_group != null}
       {
         "name": "ECS_APPLICATION_METRICS_NAMESPACE",
         "value": "${var.application_metrics_namespace}"
@@ -421,19 +421,19 @@ resource "aws_ecs_task_definition" "service" {
         "name": "ECS_APPLICATION_METRICS_LOG_GROUP",
         "value": "${var.application_metrics_log_group}"
       },
-      %{ endif }
-     %{ for idx, env_var in var.otel_environment_variables }
+      %{endif}
+     %{for idx, env_var in var.otel_environment_variables}
       {
         "name": "${env_var.name}",
         "value": "${env_var.value}"
       }${idx < length(var.otel_environment_variables) - 1 ? "," : ""}
-      %{ endfor }
+      %{endfor}
         ]
       }
-    %{ endif }
+    %{endif}
     ]
 EOF
-  tags = merge(var.tags, var.ecs_task_definition_tags)
+  tags                  = merge(var.tags, var.ecs_task_definition_tags)
 }
 
 resource "aws_ecs_service" "service" {
